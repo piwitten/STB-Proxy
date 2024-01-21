@@ -963,23 +963,27 @@ def channel(portalId, channelId):
                         chunk = ffmpeg_sp.stdout.read(bufferSize)
 
                         if len(chunk) == 0:
-                            logger.debug("No streaming data from ffmpeg detected.")
+                            logger.info("No streaming data from ffmpeg detected.")
                             if ffmpeg_sp.poll() is not None:
                                 logger.debug("Ffmpeg process closed unexpectedly with return / error code ({}).".format(str(ffmpeg_sp.poll())))
                                 # Check errors
                                 error_text = "\n".join(last_stderr)
-                                if "I/O error" in error_text:
+                                if "Operation timed out" in error_text:
+                                    logger.error("Stream to client ({}) from Portal ({}) timed out.".format(ip, portalName))
+                                elif "I/O error" in error_text:
                                     # stream ended / closed by server
+                                    logger.error("Stream to client ({}) from Portal ({}) was closed.".format(ip, portalName))
                                     streamCanceled = True
-                                    logger.info("Stream to client ({}) from Portal ({}) was closed.".format(ip, portalName))
-                                elif "Operation timed out" in error_text:
-                                    logger.info("Stream to client ({}) from Portal ({}) timed out.".format(ip, portalName))
                                 else:
-                                    logger.debug("Stream with ffmpeg process stopped with unknown error:\n{}".format(error_text))
+                                    logger.error("Stream to client ({}) from Portal ({}) stopped with unknown error in ffmpeg process.".format(ip, portalName))
+                                    logger.debug("Ffmpeg error:\n{}".format(error_text))
+                                    streamCanceled = True
                                 # stop streaming
                                 break
                         yield chunk
             except Exception as e:
+                logger.error("Stream request to URL ({}) ended with error:\n{}".format(link, e))
+                streamCanceled = True
                 pass
             finally:              
                 if stderr_thread.is_alive():
@@ -1008,10 +1012,10 @@ def channel(portalId, channelId):
                 return
             except requests.exceptions.RequestException as e:
                 logger.error("Stream request to URL ({}) ended with error:\n{}".format(link, e))
-                return
+                pass
             except Exception as e:
                 logger.error("Stream from direct buffer raised an unknown error:\n{}".format(e))
-                return
+                pass
                 
             # stream ended / closed by server
             streamCanceled = True
@@ -1371,9 +1375,9 @@ if __name__ == "__main__":
     if debugMode or ("TERM_PROGRAM" in os.environ.keys() and os.environ["TERM_PROGRAM"] == "vscode"):
         # If DEBUG is active or code running In VS Code, use default flask development sever in debug mode
         logger.info("ATTENTION: Server started in debug mode. Don't use on productive systems!")
-        app.run(host="0.0.0.0", port=8001, debug=True)
+        #app.run(host="0.0.0.0", port=8001, debug=True)
         # Note: Flask server in debug mode can lead to errors in vscode debugger ([errno 98] address in use)
-        # app.run(host="0.0.0.0", port=8001, debug=False)
+        app.run(host="0.0.0.0", port=8001, debug=False)
     else:
         # On release use waitress server with multi-threading
         waitress.serve(app, port=8001, _quiet=True, threads=24)
