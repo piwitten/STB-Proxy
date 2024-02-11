@@ -15,7 +15,7 @@ RUN apk add \
 	tzdata
 
 # Install pip requirements
-RUN pip3 install \
+RUN pip3 install --break-system-packages \
 	flask \
 	requests \
 	waitress \
