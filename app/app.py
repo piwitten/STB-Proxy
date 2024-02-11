@@ -998,6 +998,7 @@ def channel(portalId, channelId):
                 response = requests.get(link, stream=True, timeout=reqTimeout)
 
                 # Check if the request was successful
+                # Status Code Decryption: 200, 301, 302, 405, 406, 403 (Possible) = Server is broadcasting | 401, 404, 458 = Server is not broadcasting or additionally protected /Banned /GEO | 500 = Server error. (To determine pre-broadcasts)
                 if response.status_code == 200:
                     # Start Streaming
                     for chunk in response.iter_content(chunk_size=bufferSize):
